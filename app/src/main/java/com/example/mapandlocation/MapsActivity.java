@@ -94,9 +94,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         else{
             locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,0,1,locationListener);
             Location lastKnownLoc = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+            if(lastKnownLoc != null){
                 LatLng dest = new LatLng(lastKnownLoc.getLatitude(),lastKnownLoc.getLongitude());
                 mMap.addMarker(new MarkerOptions().position(dest).title("home"));
                 mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(dest,7));
+            }
+            else{
+                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,0,1,locationListener);
+            }
 
         }
         // Add a marker in Sydney and move the camera
