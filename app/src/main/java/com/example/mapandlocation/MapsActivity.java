@@ -8,6 +8,8 @@ import androidx.fragment.app.FragmentActivity;
 import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.location.Address;
+import android.location.Geocoder;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -15,18 +17,25 @@ import android.os.Bundle;
 import android.util.Log;
 import android.widget.Toast;
 
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.tasks.OnSuccessListener;
+
+import java.util.List;
+import java.util.Locale;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
     private GoogleMap mMap;
     LocationManager locationManager;
     LocationListener locationListener;
+    private FusedLocationProviderClient fusedLocationClient;
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
@@ -34,6 +43,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         if(grantResults.length>0 && grantResults[0] == PackageManager.PERMISSION_GRANTED){
             if(ContextCompat.checkSelfPermission(this,Manifest.permission.ACCESS_FINE_LOCATION)== PackageManager.PERMISSION_GRANTED){
                 locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,0,1,locationListener);
+            }
+            else {
+                ActivityCompat.requestPermissions(this,new String[]{Manifest.permission.ACCESS_FINE_LOCATION},1);
             }
         }
     }
@@ -47,6 +59,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
         // important line
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
     }
     /**
      * Manipulates the map once available.
@@ -60,6 +73,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
+        mMap.setMapType(GoogleMap.MAP_TYPE_SATELLITE);
         locationManager =(LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
         locationListener = new LocationListener() {
             @Override
@@ -69,7 +83,20 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 //                Toast.makeText(MapsActivity.this, location.toString(), Toast.LENGTH_SHORT).show();
                 LatLng dest = new LatLng(location.getLatitude(),location.getLongitude());
                 mMap.addMarker(new MarkerOptions().position(dest).title("home"));
-                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(dest,7));
+                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(dest,11));
+                /// ignore
+//                Geocoder geocoder = new Geocoder(getApplicationContext(), Locale.getDefault());
+//                try{
+//
+//                    List<Address> listaddresses = geocoder.getFromLocation(location.getLatitude(),location.getLongitude(),1);
+//                    if(listaddresses != null && listaddresses.size()>0){
+//                        Log.i("street address",listaddresses.get(0).toString());
+//                    }
+//
+//                }
+//                catch (Exception e){
+//                    e.printStackTrace();
+//                }
             }
 
             @Override
@@ -93,15 +120,28 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
         else{
             locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,0,1,locationListener);
-            Location lastKnownLoc = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-            if(lastKnownLoc != null){
-                LatLng dest = new LatLng(lastKnownLoc.getLatitude(),lastKnownLoc.getLongitude());
-                mMap.addMarker(new MarkerOptions().position(dest).title("home"));
-                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(dest,7));
-            }
-            else{
-                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,0,1,locationListener);
-            }
+//            Location lastKnownLoc = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+            fusedLocationClient.getLastLocation()
+                    .addOnSuccessListener(this, new OnSuccessListener<Location>() {
+                        @Override
+                        public void onSuccess(Location location) {
+                            // Got last known location. In some rare situations this can be null.
+                            if (location != null) {
+                                // Logic to handle location object
+                                LatLng dest = new LatLng(location.getLatitude(),location.getLongitude());
+                                mMap.addMarker(new MarkerOptions().position(dest).title("home"));
+                                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(dest,7));
+                            }
+                            else{
+                                try{
+                                    locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,0,1,locationListener);
+                                }
+                                catch (Exception e){
+                                    e.printStackTrace();
+                                }
+                            }
+                        }
+                    });
 
         }
         // Add a marker in Sydney and move the camera
